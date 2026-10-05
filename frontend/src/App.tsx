@@ -1,23 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import {
-  AppBar,
   Alert,
-  Avatar,
-  Badge,
   Box,
   Button,
   Chip,
   CircularProgress,
   Container,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Card,
   CardActions,
   CardContent,
-  Toolbar,
   Typography,
 } from '@mui/material'
 import {
@@ -28,16 +20,17 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './app/hooks'
-import { signOut } from './features/auth/application/authSlice'
-import { roleLabels } from './features/auth/domain/auth'
 import { RoleGuard } from './features/auth/presentation/RoleGuard'
-import { selectActiveRestaurant, loadRestaurants } from './features/restaurants/application/restaurantsSlice'
-import { selectCartItemCount, clearCart } from './features/cart/application/cartSlice'
+import { clearCart } from './features/cart/application/cartSlice'
+import {
+  loadRestaurants,
+  selectActiveRestaurant,
+} from './features/restaurants/application/restaurantsSlice'
 import { CartDrawer } from './features/cart/presentation/CartDrawer'
-import ShoppingBagOutlined from '@mui/icons-material/ShoppingBagOutlined'
 import LocationOnOutlined from '@mui/icons-material/LocationOnOutlined'
 import PhoneOutlined from '@mui/icons-material/PhoneOutlined'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
+import { Header } from './shared/components/Header'
 
 const ProductCatalogPage = lazy(() =>
   import('./features/products/presentation/ProductCatalogPage').then(
@@ -79,38 +72,16 @@ const RestaurantAdminPage = lazy(() =>
 function HomePage({
   canManageProducts,
   canAdminister,
+  onChooseRestaurant,
 }: {
   canManageProducts: boolean
   canAdminister: boolean
+  onChooseRestaurant: (restaurantId: number) => Promise<boolean>
 }) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { items: restaurants, activeRestaurant, status, error } =
     useAppSelector((state) => state.restaurants)
-  const cart = useAppSelector((state) => state.cart)
-
-  async function chooseRestaurant(restaurantId: number): Promise<boolean> {
-    if (
-      cart.items.length > 0 &&
-      cart.restaurantId !== null &&
-      cart.restaurantId !== restaurantId &&
-      !window.confirm(
-        'Changer de restaurant effacera le panier actuel. Voulez-vous continuer ?',
-      )
-    ) {
-      return false
-    }
-    try {
-      await dispatch(selectActiveRestaurant(restaurantId)).unwrap()
-      if (cart.restaurantId !== null && cart.restaurantId !== restaurantId) {
-        dispatch(clearCart())
-      }
-      return true
-    } catch {
-      // L’erreur est affichée depuis l’état partagé des restaurants.
-      return false
-    }
-  }
 
   return (
     <Box sx={{ py: { xs: 5, md: 8 } }}>
@@ -275,7 +246,7 @@ function HomePage({
                   disabled={!restaurant.is_open}
                   fullWidth
                   onClick={async () => {
-                    if (await chooseRestaurant(restaurant.id)) {
+                    if (await onChooseRestaurant(restaurant.id)) {
                       navigate('/produits')
                     }
                   }}
@@ -312,14 +283,7 @@ function NotFoundPage() {
 function App() {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
-  const restaurants = useAppSelector((state) => state.restaurants.items)
-  const activeRestaurant = useAppSelector(
-    (state) => state.restaurants.activeRestaurant,
-  )
-  const restaurantStatus = useAppSelector((state) => state.restaurants.status)
-  const restaurantError = useAppSelector((state) => state.restaurants.error)
   const cart = useAppSelector((state) => state.cart)
-  const cartCount = useAppSelector(selectCartItemCount)
   const canManageProducts = user?.role === 'admin' || user?.role === 'staff'
   const canAdminister = user?.role === 'admin'
   const [cartOpen, setCartOpen] = useState(false)
@@ -328,7 +292,7 @@ function App() {
     void dispatch(loadRestaurants())
   }, [dispatch])
 
-  async function changeRestaurant(restaurantId: number) {
+  async function changeRestaurant(restaurantId: number): Promise<boolean> {
     if (
       cart.items.length > 0 &&
       cart.restaurantId !== null &&
@@ -337,7 +301,7 @@ function App() {
         'Changer de restaurant effacera le panier actuel. Voulez-vous continuer ?',
       )
     ) {
-      return
+      return false
     }
 
     try {
@@ -345,159 +309,18 @@ function App() {
       if (cart.restaurantId !== null && cart.restaurantId !== restaurantId) {
         dispatch(clearCart())
       }
+      return true
     } catch {
-      // Le message d’échec est exposé dans l’état restaurants et affiché ci-dessous.
+      return false
     }
   }
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <AppBar
-        color="inherit"
-        elevation={0}
-        position="sticky"
-        sx={{ borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Toolbar
-          component={Container}
-          maxWidth="lg"
-          sx={{
-            alignItems: { xs: 'stretch', md: 'center' },
-            flexDirection: { xs: 'column', md: 'row' },
-            gap: 1.5,
-            py: 1.5,
-          }}
-        >
-          <Typography
-            component={RouterLink}
-            sx={{
-              color: 'primary.main',
-              flexGrow: 1,
-              fontSize: '1.1rem',
-              fontWeight: 800,
-              textDecoration: 'none',
-            }}
-            to="/"
-            variant="h6"
-          >
-            Ytasty Crousty
-          </Typography>
-          <FormControl
-            disabled={restaurantStatus !== 'ready' || restaurants.length === 0}
-            size="small"
-            sx={{ minWidth: { xs: 160, sm: 220 } }}
-          >
-            <InputLabel id="restaurant-active-label">Restaurant</InputLabel>
-            <Select
-              label="Restaurant"
-              labelId="restaurant-active-label"
-              onChange={(event) => {
-                const restaurantId = Number(event.target.value)
-                if (Number.isSafeInteger(restaurantId)) {
-                  void changeRestaurant(restaurantId)
-                }
-              }}
-              value={activeRestaurant ? String(activeRestaurant.id) : ''}
-            >
-              {restaurants.map((restaurant) => (
-                <MenuItem key={restaurant.id} value={String(restaurant.id)}>
-                  {restaurant.city}
-                  {!restaurant.is_open ? ' · Fermé' : ''}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Stack sx={{ alignItems: 'center', flexDirection: 'row', gap: 1 }}>
-            <Button
-              component={RouterLink}
-              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-              to="/"
-              variant="text"
-            >
-              Accueil
-            </Button>
-            <Button component={RouterLink} to="/produits" variant="text">
-              Carte
-            </Button>
-            {canManageProducts && (
-              <Button
-                component={RouterLink}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-                to="/admin/products"
-                variant="text"
-              >
-                Produits
-              </Button>
-            )}
-            {canAdminister && (
-              <Button
-                component={RouterLink}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-                to="/admin/restaurants"
-                variant="text"
-              >
-                Restaurants
-              </Button>
-            )}
-            <Button
-              aria-label={`Ouvrir le panier, ${cartCount} article${cartCount === 1 ? '' : 's'}`}
-              onClick={() => setCartOpen(true)}
-              sx={{ minWidth: 44, px: 1 }}
-              variant="text"
-            >
-              <Badge badgeContent={cartCount} color="primary" showZero>
-                <ShoppingBagOutlined />
-              </Badge>
-            </Button>
-            {user ? (
-              <>
-                <Avatar sx={{ bgcolor: 'secondary.main', width: 34, height: 34 }}>
-                  {user.role.slice(0, 1).toUpperCase()}
-                </Avatar>
-                <Typography
-                  color="text.secondary"
-                  sx={{ display: { xs: 'none', sm: 'block' } }}
-                  variant="body2"
-                >
-                  {`Compte #${user.id}`}
-                  <br />
-                  <Chip
-                    color="secondary"
-                    label={roleLabels[user.role]}
-                    size="small"
-                    sx={{ height: 20 }}
-                  />
-                </Typography>
-                <Button
-                  onClick={() => void dispatch(signOut())}
-                  variant="outlined"
-                >
-                  <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                    Déconnexion
-                  </Box>
-                  <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-                    Sortir
-                  </Box>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button component={RouterLink} to="/register" variant="text">
-                  Créer un compte
-                </Button>
-                <Button component={RouterLink} to="/login" variant="contained">
-                  Connexion
-                </Button>
-              </>
-            )}
-          </Stack>
-        </Toolbar>
-        {restaurantError && (
-          <Container maxWidth="lg" sx={{ pb: 1.5 }}>
-            <Alert severity="error">{restaurantError}</Alert>
-          </Container>
-        )}
-      </AppBar>
+      <Header
+        onOpenCart={() => setCartOpen(true)}
+        onRestaurantChange={changeRestaurant}
+      />
 
       <Container component="main" maxWidth="lg" sx={{ flex: 1 }}>
         <Suspense
@@ -513,6 +336,7 @@ function App() {
                 <HomePage
                   canAdminister={canAdminister}
                   canManageProducts={canManageProducts}
+                  onChooseRestaurant={changeRestaurant}
                 />
               }
               path="/"

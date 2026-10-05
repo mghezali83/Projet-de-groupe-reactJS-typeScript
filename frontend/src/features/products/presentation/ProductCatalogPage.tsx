@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Box,
@@ -42,34 +42,104 @@ export function ProductCatalogPage() {
   )
   const [products, setProducts] = useState<Product[]>([])
   const [loadedRequest, setLoadedRequest] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [catalogCategories, setCatalogCategories] = useState<{
+    restaurantId: number
+    items: string[]
+  } | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
+  const [productLoadError, setProductLoadError] = useState<{
+    requestKey: string
+    message: string
+  } | null>(null)
+  const [categoryLoadError, setCategoryLoadError] = useState<{
+    restaurantId: number
+    message: string
+  } | null>(null)
   const query = searchParams.get('q') ?? ''
-  const [category, setCategory] = useState('')
+  const normalizedQuery = query.trim()
+  const [categorySelection, setCategorySelection] = useState<{
+    restaurantId: number | null
+    value: string
+  }>({ restaurantId: null, value: '' })
   const [availableOnly, setAvailableOnly] = useState(false)
+  const restaurantId = activeRestaurant?.id
+  const category =
+    categorySelection.restaurantId === restaurantId
+      ? categorySelection.value
+      : ''
 
-  const requestKey = `${activeRestaurant?.id ?? ''}|${query}|${availableOnly}`
+  const requestKey = JSON.stringify([
+    restaurantId,
+    normalizedQuery,
+    category,
+    availableOnly,
+    retryToken,
+  ])
   const loading = loadedRequest !== requestKey
+  const error =
+    productLoadError && productLoadError.requestKey === requestKey
+      ? productLoadError.message
+      : null
+  const categoryError =
+    categoryLoadError && categoryLoadError.restaurantId === restaurantId
+      ? categoryLoadError.message
+      : null
 
   useEffect(() => {
-    if (!activeRestaurant) return
+    if (restaurantId === undefined) return
+
+    let active = true
+    void getCatalogProducts({ restaurant_id: restaurantId })
+      .then((data) => {
+        if (active) {
+          setCategoryLoadError(null)
+          setCatalogCategories({
+            restaurantId,
+            items: [...new Set(data.map((product) => product.category))].sort(
+              (a, b) => a.localeCompare(b, 'fr'),
+            ),
+          })
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (active) {
+          setCategoryLoadError({
+            restaurantId,
+            message: getApiErrorMessage(requestError),
+          })
+          setCatalogCategories({ restaurantId, items: [] })
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [restaurantId, retryToken])
+
+  useEffect(() => {
+    if (restaurantId === undefined) return
 
     let active = true
     const timer = window.setTimeout(() => {
       void getCatalogProducts({
-        restaurant_id: activeRestaurant.id,
-        ...(query ? { q: query } : {}),
+        restaurant_id: restaurantId,
+        ...(normalizedQuery ? { q: normalizedQuery } : {}),
+        ...(category ? { category } : {}),
         ...(availableOnly ? { is_available: true } : {}),
       })
         .then((data) => {
           if (active) {
             setProducts(data)
-            setError(null)
+            setProductLoadError(null)
             setLoadedRequest(requestKey)
           }
         })
         .catch((requestError: unknown) => {
           if (active) {
-            setError(getApiErrorMessage(requestError))
+            setProductLoadError({
+              requestKey,
+              message: getApiErrorMessage(requestError),
+            })
             setLoadedRequest(requestKey)
           }
         })
@@ -79,19 +149,18 @@ export function ProductCatalogPage() {
       active = false
       window.clearTimeout(timer)
     }
-  }, [activeRestaurant, availableOnly, query, requestKey])
+  }, [
+    availableOnly,
+    category,
+    normalizedQuery,
+    requestKey,
+    restaurantId,
+  ])
 
-  const categories = useMemo(
-    () => [...new Set(products.map((product) => product.category))].sort(),
-    [products],
-  )
-  const visibleProducts = useMemo(
-    () =>
-      category
-        ? products.filter((product) => product.category === category)
-        : products,
-    [category, products],
-  )
+  const categories =
+    catalogCategories && catalogCategories.restaurantId === restaurantId
+      ? catalogCategories.items
+      : []
 
   if (restaurantsStatus === 'failed') {
     return (
@@ -158,9 +227,21 @@ export function ProductCatalogPage() {
         </Alert>
       )}
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+      {categoryError && (
+        <Alert
+          action={
+            <Button
+              color="inherit"
+              onClick={() => setRetryToken((value) => value + 1)}
+              size="small"
+            >
+              Réessayer
+            </Button>
+          }
+          severity="warning"
+          sx={{ mb: 3 }}
+        >
+          Les catégories n’ont pas pu être chargées : {categoryError}
         </Alert>
       )}
 
@@ -196,7 +277,14 @@ export function ProductCatalogPage() {
         />
         <TextField
           label="Catégorie"
-          onChange={(event) => setCategory(event.target.value)}
+          onChange={(event) => {
+            if (restaurantId !== undefined) {
+              setCategorySelection({
+                restaurantId,
+                value: event.target.value,
+              })
+            }
+          }}
           select
           sx={{ minWidth: { md: 190 } }}
           value={category}
@@ -242,7 +330,22 @@ export function ProductCatalogPage() {
             </Card>
           ))}
         </Box>
-      ) : visibleProducts.length === 0 ? (
+      ) : error ? (
+        <Alert
+          action={
+            <Button
+              color="inherit"
+              onClick={() => setRetryToken((value) => value + 1)}
+              size="small"
+            >
+              Réessayer
+            </Button>
+          }
+          severity="error"
+        >
+          Impossible de charger la carte : {error}
+        </Alert>
+      ) : products.length === 0 ? (
         <Alert severity="info">
           Aucun produit ne correspond à ces filtres.
         </Alert>
@@ -258,22 +361,26 @@ export function ProductCatalogPage() {
             },
           }}
         >
-          {visibleProducts.map((product) => (
+          {products.map((product) => (
             <ProductCard
               key={product.id}
               onAdd={() =>
-                dispatch(
-                  addCartItem({
-                    restaurantId: activeRestaurant.id,
-                    item: {
-                      productId: product.id,
-                      name: product.name,
-                      image: product.image,
-                      unitPrice: product.price,
-                      quantity: 1,
-                    },
-                  }),
-                )
+                product.is_available && activeRestaurant.is_open
+                  ? dispatch(
+                      addCartItem({
+                        restaurantId: activeRestaurant.id,
+                        restaurantOpen: activeRestaurant.is_open,
+                        item: {
+                          productId: product.id,
+                          name: product.name,
+                          image: product.image,
+                          unitPrice: product.price,
+                          quantity: 1,
+                          isAvailable: product.is_available,
+                        },
+                      }),
+                    )
+                  : undefined
               }
               product={product}
               restaurantOpen={activeRestaurant.is_open}

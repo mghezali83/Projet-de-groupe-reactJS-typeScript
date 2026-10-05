@@ -131,7 +131,20 @@ export function CartDrawer({
                   </Typography>
                   <IconButton
                     aria-label={`Ajouter ${item.name}`}
-                    onClick={() => dispatch(incrementCartItem(item.productId))}
+                    disabled={
+                      !cartMatchesActiveRestaurant ||
+                      !activeRestaurant?.is_open ||
+                      !item.isAvailable
+                    }
+                    onClick={() =>
+                      dispatch(
+                        incrementCartItem({
+                          productId: item.productId,
+                          restaurantId: activeRestaurant?.id ?? null,
+                          restaurantOpen: activeRestaurant?.is_open === true,
+                        }),
+                      )
+                    }
                     size="small"
                   >
                     <AddRounded fontSize="small" />

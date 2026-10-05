@@ -11,6 +11,8 @@ import {
   Stepper,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import { useParams } from 'react-router-dom'
 import { getApiErrorMessage } from '../../../shared/api/client'
@@ -42,6 +44,8 @@ const currency = new Intl.NumberFormat('fr-FR', {
 })
 
 export function OrderTrackingPage() {
+  const theme = useTheme()
+  const compactStepper = useMediaQuery(theme.breakpoints.down('sm'))
   const { order_number: orderNumber } = useParams()
   const [order, setOrder] = useState<Order | null>(null)
   const [productNames, setProductNames] = useState<Record<number, string>>({})
@@ -173,10 +177,11 @@ export function OrderTrackingPage() {
             </Stack>
             <Stepper
               activeStep={Math.max(activeStep, 0)}
-              alternativeLabel
+              alternativeLabel={!compactStepper}
+              orientation={compactStepper ? 'vertical' : 'horizontal'}
               sx={{
                 '& .MuiStepLabel-label': {
-                  fontSize: { xs: '0.65rem', sm: '0.875rem' },
+                  fontSize: '0.875rem',
                 },
               }}
             >

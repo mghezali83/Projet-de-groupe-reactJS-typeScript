@@ -1,16 +1,31 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 
+const MAX_ORDER_ITEM_QUANTITY = 2_147_483_647
+
 export interface CartItem {
   productId: number
   name: string
   image: string | null
   unitPrice: number
   quantity: number
+  isAvailable: boolean
 }
 
 interface CartState {
   restaurantId: number | null
   items: CartItem[]
+}
+
+interface AddCartItemPayload {
+  restaurantId: number
+  restaurantOpen: boolean
+  item: CartItem
+}
+
+interface IncrementCartItemPayload {
+  productId: number
+  restaurantId: number | null
+  restaurantOpen: boolean
 }
 
 const initialState: CartState = {
@@ -24,23 +39,51 @@ const cartSlice = createSlice({
   reducers: {
     addCartItem(
       state,
-      action: PayloadAction<{ restaurantId: number; item: CartItem }>,
+      action: PayloadAction<AddCartItemPayload>,
     ) {
-      if (state.restaurantId !== action.payload.restaurantId) {
+      const { item, restaurantId, restaurantOpen } = action.payload
+      if (
+        !item.isAvailable ||
+        !restaurantOpen ||
+        !Number.isSafeInteger(restaurantId) ||
+        restaurantId <= 0 ||
+        !Number.isSafeInteger(item.productId) ||
+        item.productId <= 0 ||
+        !Number.isSafeInteger(item.quantity) ||
+        item.quantity <= 0 ||
+        item.quantity > MAX_ORDER_ITEM_QUANTITY ||
+        !Number.isFinite(item.unitPrice) ||
+        item.unitPrice < 0
+      ) {
+        return
+      }
+
+      if (state.restaurantId !== restaurantId) {
         if (state.items.length > 0) return
-        state.restaurantId = action.payload.restaurantId
+        state.restaurantId = restaurantId
       }
       const existing = state.items.find(
-        (item) => item.productId === action.payload.item.productId,
+        (entry) => entry.productId === item.productId,
       )
-      if (existing) existing.quantity += action.payload.item.quantity
-      else if (action.payload.item.quantity > 0) state.items.push(action.payload.item)
+      if (existing) {
+        const nextQuantity = existing.quantity + item.quantity
+        if (Number.isSafeInteger(nextQuantity)) existing.quantity = nextQuantity
+      } else {
+        state.items.push(item)
+      }
     },
-    incrementCartItem(state, action: PayloadAction<number>) {
+    incrementCartItem(state, action: PayloadAction<IncrementCartItemPayload>) {
       const item = state.items.find(
-        (entry) => entry.productId === action.payload,
+        (entry) => entry.productId === action.payload.productId,
       )
-      if (item) item.quantity += 1
+      if (
+        item?.isAvailable &&
+        state.restaurantId === action.payload.restaurantId &&
+        action.payload.restaurantOpen &&
+        item.quantity < MAX_ORDER_ITEM_QUANTITY
+      ) {
+        item.quantity += 1
+      }
     },
     decrementCartItem(state, action: PayloadAction<number>) {
       const item = state.items.find(
@@ -81,8 +124,9 @@ export const selectCartItemCount = (state: { cart: CartState }): number =>
 
 export const selectCartTotal = (state: { cart: CartState }): number =>
   state.cart.items.reduce(
-    (total, item) => total + item.unitPrice * item.quantity,
+    (totalCents, item) =>
+      totalCents + Math.round(item.unitPrice * 100) * item.quantity,
     0,
-  )
+  ) / 100
 
 export default cartSlice.reducer

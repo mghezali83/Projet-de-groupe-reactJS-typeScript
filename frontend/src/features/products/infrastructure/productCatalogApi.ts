@@ -3,6 +3,7 @@ import type { Product } from '../../admin/products/domain/product'
 
 export interface ProductFilters {
   restaurant_id: number
+  category?: string
   q?: string
   is_available?: boolean
 }

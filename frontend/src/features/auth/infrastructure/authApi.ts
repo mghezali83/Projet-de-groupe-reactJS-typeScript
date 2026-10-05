@@ -5,10 +5,12 @@ import type {
   AuthUser,
   LoginCredentials,
   LoginResponse,
+  RegisteredUser,
+  RegistrationDetails,
   UserRole,
 } from '../domain/auth'
 
-const roles: UserRole[] = ['staff', 'admin', 'direction']
+const roles: UserRole[] = ['staff', 'admin', 'direction', 'client']
 
 // Ces claims servent à l’interface; seul le backend valide la signature du JWT.
 function getUserFromToken(token: string): AuthUser {
@@ -70,6 +72,13 @@ export async function login(
 
   localStorage.setItem(AUTH_STORAGE_KEY, session.token)
   return session
+}
+
+export async function register(
+  details: RegistrationDetails,
+): Promise<RegisteredUser> {
+  const response = await apiClient.post<RegisteredUser>('/auth/register', details)
+  return response.data
 }
 
 export function restoreSession(): AuthSession | null {

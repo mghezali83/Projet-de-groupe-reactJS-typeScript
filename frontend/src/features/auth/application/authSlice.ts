@@ -1,7 +1,16 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { getApiErrorMessage } from '../../../shared/api/client'
-import type { AuthSession, LoginCredentials } from '../domain/auth'
-import { clearStoredSession, login, restoreSession } from '../infrastructure/authApi'
+import type {
+  AuthSession,
+  LoginCredentials,
+  RegistrationDetails,
+} from '../domain/auth'
+import {
+  clearStoredSession,
+  login,
+  register,
+  restoreSession,
+} from '../infrastructure/authApi'
 
 interface AuthState {
   token: string | null
@@ -26,6 +35,22 @@ export const signIn = createAsyncThunk<
 >('auth/signIn', async (credentials, { rejectWithValue }) => {
   try {
     return await login(credentials)
+  } catch (error) {
+    return rejectWithValue(getApiErrorMessage(error))
+  }
+})
+
+export const signUp = createAsyncThunk<
+  AuthSession,
+  RegistrationDetails,
+  { rejectValue: string }
+>('auth/signUp', async (details, { rejectWithValue }) => {
+  try {
+    await register(details)
+    return await login({
+      username: details.username,
+      password: details.password,
+    })
   } catch (error) {
     return rejectWithValue(getApiErrorMessage(error))
   }
@@ -58,6 +83,20 @@ const authSlice = createSlice({
         state.status = 'failed'
         state.error =
           action.payload ?? 'La connexion a échoué. Réessayez.'
+      })
+      .addCase(signUp.pending, (state) => {
+        state.status = 'loading'
+        state.error = null
+      })
+      .addCase(signUp.fulfilled, (state, action) => {
+        state.status = 'idle'
+        state.token = action.payload.token
+        state.user = action.payload.user
+      })
+      .addCase(signUp.rejected, (state, action) => {
+        state.status = 'failed'
+        state.error =
+          action.payload ?? 'La création du compte a échoué. Réessayez.'
       })
       .addCase(signOut.fulfilled, (state) => {
         state.token = null

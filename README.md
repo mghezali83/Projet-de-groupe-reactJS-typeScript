@@ -33,7 +33,7 @@ cp .env.example .env
 
 `cp .env.example .env` copie le fichier de configuration d'exemple vers un fichier personnel `.env`.
 
-Renseigner `SECRET_KEY` dans `.env` avec une clé aléatoire privée d'au moins 32 caractères. Garder `ADMIN_PASSWORD=Admin@123456` pour le compte imposé par le sujet. Ne pas ajouter `.env` dans Git.
+Renseigner `SECRET_KEY` dans `.env` avec une clé aléatoire privée d'au moins 32 caractères. Le compte administrateur local utilise l’identifiant `admin123` et le mot de passe configuré par `ADMIN_PASSWORD` (valeur de démonstration : `admin@123456`). Ne pas ajouter `.env` dans Git.
 
 ```powershell
 docker compose up --build
@@ -45,9 +45,11 @@ La base PostgreSQL, les tables, les trois restaurants et l'administrateur sont i
 - [Swagger](http://localhost:8000/docs)
 - [OpenAPI](http://localhost:8000/openapi.json)
 
-Dans Swagger, utiliser `POST /auth/login` avec `admin123` et `Admin@123456`, puis coller le token reçu dans **Authorize**. Le compte admin imposé est une exception à la longueur minimale de 12 caractères appliquée aux nouveaux comptes.
+Dans Swagger, utiliser `POST /auth/login` avec `admin123` et la valeur actuelle de `ADMIN_PASSWORD`, puis coller le token reçu dans **Authorize**. L’API initialise ou resynchronise le compte administrateur depuis cette variable au démarrage.
 
-Pour arrêter : `docker compose down`. Modifier `ADMIN_PASSWORD` ne change pas un mot de passe déjà enregistré en base.
+Les clients peuvent créer un compte avec `POST /auth/register`. Cette inscription publique ne permet pas de choisir un rôle privilégié. Les administrateurs connectés peuvent gérer les produits et les restaurants depuis l’interface.
+
+Pour arrêter : `docker compose down`.
 
 ## Répartition des tâches
 

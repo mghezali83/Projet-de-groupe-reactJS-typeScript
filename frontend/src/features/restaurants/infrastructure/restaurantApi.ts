@@ -17,3 +17,34 @@ export async function getRestaurant(restaurantId: number): Promise<Restaurant> {
   )
   return response.data
 }
+
+export type RestaurantInput = Omit<Restaurant, 'id'>
+
+export async function createRestaurant(
+  restaurant: RestaurantInput,
+): Promise<Restaurant> {
+  const response = await apiClient.post<Restaurant>('/restaurants', restaurant)
+  return response.data
+}
+
+export async function updateRestaurant(
+  restaurantId: number,
+  restaurant: Partial<RestaurantInput>,
+): Promise<Restaurant> {
+  const response = await apiClient.patch<Restaurant>(
+    `/restaurants/${restaurantId}`,
+    restaurant,
+  )
+  return response.data
+}
+
+export async function updateRestaurantAvailability(
+  restaurantId: number,
+  isOpen: boolean,
+): Promise<Restaurant> {
+  const response = await apiClient.patch<Restaurant>(
+    `/restaurants/${restaurantId}/availability`,
+    { is_open: isOpen },
+  )
+  return response.data
+}

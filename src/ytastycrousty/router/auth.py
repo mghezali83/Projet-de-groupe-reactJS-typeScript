@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException 
 from sqlalchemy.orm import Session 
 from ..db.database import get_db 
-from ..schemas.auth import RequeteConnexion, TokenReponse 
-from ..crud.auth import authentifier_user
+from ..schemas.auth import RegistrationRequest, RequeteConnexion, TokenReponse
+from ..schemas.user import UserOut
+from ..crud.auth import authentifier_user, inscrire_client
 from ..security import creer_token
 
 router = APIRouter()
@@ -17,4 +18,8 @@ def login(requete : RequeteConnexion ,db :Session = Depends(get_db)  ):
     token = creer_token(user.id, user.role,user.restaurant_id)
 
     return {"access_token" : token, "token_type" : "bearer"}
-  
+
+
+@router.post("/register", response_model=UserOut, status_code=201)
+def register(registration: RegistrationRequest, db: Session = Depends(get_db)):
+    return inscrire_client(db, registration)

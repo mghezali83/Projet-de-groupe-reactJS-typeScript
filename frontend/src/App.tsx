@@ -60,13 +60,29 @@ const LoginPage = lazy(() =>
     default: module.LoginPage,
   })),
 )
+const RegisterPage = lazy(() =>
+  import('./features/auth/presentation/RegisterPage').then((module) => ({
+    default: module.RegisterPage,
+  })),
+)
 const ProductAdminPage = lazy(() =>
   import('./features/admin/products/presentation/ProductAdminPage').then(
     (module) => ({ default: module.ProductAdminPage }),
   ),
 )
+const RestaurantAdminPage = lazy(() =>
+  import('./features/admin/restaurants/presentation/RestaurantAdminPage').then(
+    (module) => ({ default: module.RestaurantAdminPage }),
+  ),
+)
 
-function HomePage({ canManageProducts }: { canManageProducts: boolean }) {
+function HomePage({
+  canManageProducts,
+  canAdminister,
+}: {
+  canManageProducts: boolean
+  canAdminister: boolean
+}) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { items: restaurants, activeRestaurant, status, error } =
@@ -117,7 +133,24 @@ function HomePage({ canManageProducts }: { canManageProducts: boolean }) {
           Aix-en-Provence, Lyon ou Paris : retrouvez notre adresse, nos horaires
           et commandez auprès de votre établissement.
         </Typography>
-        {canManageProducts && (
+        {canAdminister && (
+          <Stack
+            sx={{
+              mt: 1,
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'center',
+              gap: 1,
+            }}
+          >
+            <Button component={RouterLink} to="/admin/products" variant="outlined">
+              Gérer les produits
+            </Button>
+            <Button component={RouterLink} to="/admin/restaurants" variant="outlined">
+              Gérer les restaurants
+            </Button>
+          </Stack>
+        )}
+        {canManageProducts && !canAdminister && (
           <Button
             component={RouterLink}
             sx={{ mt: 1 }}
@@ -288,6 +321,7 @@ function App() {
   const cart = useAppSelector((state) => state.cart)
   const cartCount = useAppSelector(selectCartItemCount)
   const canManageProducts = user?.role === 'admin' || user?.role === 'staff'
+  const canAdminister = user?.role === 'admin'
   const [cartOpen, setCartOpen] = useState(false)
 
   useEffect(() => {
@@ -395,6 +429,16 @@ function App() {
                 Produits
               </Button>
             )}
+            {canAdminister && (
+              <Button
+                component={RouterLink}
+                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+                to="/admin/restaurants"
+                variant="text"
+              >
+                Restaurants
+              </Button>
+            )}
             <Button
               aria-label={`Ouvrir le panier, ${cartCount} article${cartCount === 1 ? '' : 's'}`}
               onClick={() => setCartOpen(true)}
@@ -437,9 +481,14 @@ function App() {
                 </Button>
               </>
             ) : (
-              <Button component={RouterLink} to="/login" variant="contained">
-                Connexion
-              </Button>
+              <>
+                <Button component={RouterLink} to="/register" variant="text">
+                  Créer un compte
+                </Button>
+                <Button component={RouterLink} to="/login" variant="contained">
+                  Connexion
+                </Button>
+              </>
             )}
           </Stack>
         </Toolbar>
@@ -460,10 +509,17 @@ function App() {
         >
           <Routes>
             <Route
-              element={<HomePage canManageProducts={canManageProducts} />}
+              element={
+                <HomePage
+                  canAdminister={canAdminister}
+                  canManageProducts={canManageProducts}
+                />
+              }
               path="/"
             />
             <Route element={<LoginPage />} path="/login" />
+            <Route element={<RegisterPage />} path="/register" />
+            <Route element={<RegisterPage />} path="/inscription" />
             <Route
               element={<Navigate replace to="/login" />}
               path="/connexion"
@@ -484,6 +540,14 @@ function App() {
                 </RoleGuard>
               }
               path="/admin/products"
+            />
+            <Route
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <RestaurantAdminPage />
+                </RoleGuard>
+              }
+              path="/admin/restaurants"
             />
             <Route element={<NotFoundPage />} path="*" />
           </Routes>

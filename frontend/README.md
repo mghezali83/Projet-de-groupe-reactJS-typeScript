@@ -26,15 +26,21 @@ origines locales `localhost:5173` et `127.0.0.1:5173` sont déjà activées dans
 ## Connexion et administration
 
 - Connexion : `/login`
+- Création d’un compte client : `/register`
 - Administration des produits : `/admin/products`
+- Administration des restaurants : `/admin/restaurants` (administrateur uniquement)
 - Compte administrateur local initialisé par l’API : `admin123`
-- Le mot de passe est la valeur configurée par `ADMIN_PASSWORD` dans le `.env`
-  du backend (valeur de démonstration du projet : `Admin@123456`).
+- Mot de passe local de démonstration : `admin@123456` (configuré par
+  `ADMIN_PASSWORD` dans le `.env` backend).
 
 Les images de produits sont saisies sous forme d’URL HTTP(S), conformément au
 schéma FastAPI. L’API ne propose pas d’endpoint de téléversement de fichiers.
 Les contrôles de rôle côté frontend améliorent la navigation ; l’API reste
 l’autorité pour l’autorisation effective.
+
+Les comptes créés depuis le formulaire public disposent uniquement du rôle
+client. Le rôle administrateur ne peut être attribué que par le compte initial
+configuré côté serveur.
 
 ## Commande client
 

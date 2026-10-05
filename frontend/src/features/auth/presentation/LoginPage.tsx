@@ -9,7 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import type { Location } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../../app/hooks'
 import { signIn } from '../application/authSlice'
@@ -42,8 +42,18 @@ export function LoginPage() {
       <Box sx={{ maxWidth: 480, mx: 'auto', py: { xs: 6, md: 10 } }}>
         <Alert severity="info">
           Vous êtes déjà connecté.{' '}
-          <Button onClick={() => navigate('/admin/products')}>
-            Accéder à l’administration
+          <Button
+            onClick={() =>
+              navigate(
+                user.role === 'admin'
+                  ? '/admin/restaurants'
+                  : user.role === 'staff'
+                    ? '/admin/products'
+                    : '/',
+              )
+            }
+          >
+            {user.role === 'client' ? 'Retour à l’accueil' : 'Accéder à la gestion'}
           </Button>
         </Alert>
       </Box>
@@ -68,6 +78,9 @@ export function LoginPage() {
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 1 }}>
                 Connectez-vous pour accéder aux outils de gestion.
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
+                Administrateur de démonstration : admin123 / admin@123456
               </Typography>
             </Box>
             {error && <Alert severity="error">{error}</Alert>}
@@ -97,6 +110,9 @@ export function LoginPage() {
               variant="contained"
             >
               {status === 'loading' ? 'Connexion…' : 'Se connecter'}
+            </Button>
+            <Button component={RouterLink} to="/register" variant="text">
+              Créer un compte client
             </Button>
           </Stack>
         </CardContent>

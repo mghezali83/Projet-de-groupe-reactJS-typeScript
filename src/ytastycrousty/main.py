@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from .admin import create_admin
 from .initialisation import initialiser_restaurants
 from .db.config import settings
@@ -25,6 +26,13 @@ async def lifespan(app: FastAPI):
     engine.dispose()
 
 app = FastAPI(title="Ytasty Crousty API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #route qui permet de vérifier si l'API fonctionne et répond
 @app.get("/health")

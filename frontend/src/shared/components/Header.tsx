@@ -44,6 +44,8 @@ export function Header({
   const cartCount = useAppSelector(selectCartItemCount)
   const canManageProducts = user?.role === 'admin' || user?.role === 'staff'
   const canAdminister = user?.role === 'admin'
+  const canViewOrders =
+    user?.role === 'admin' || user?.role === 'staff' || user?.role === 'direction'
   const [mobileMenuAnchor, setMobileMenuAnchor] = useState<HTMLElement | null>(
     null,
   )
@@ -96,7 +98,7 @@ export function Header({
           >
             YC
           </Box>
-          <Typography
+          <Typography 
             color="primary.main"
             noWrap
             sx={{ fontSize: { xs: '1rem', sm: '1.1rem' }, fontWeight: 850 }}
@@ -205,9 +207,19 @@ export function Header({
               Produits
             </Button>
           )}
+          {canViewOrders && (
+            <Button component={RouterLink} to="/admin/orders" variant="text">
+              Commandes
+            </Button>
+          )}
           {canAdminister && (
             <Button component={RouterLink} to="/admin/restaurants" variant="text">
               Restaurants
+            </Button>
+          )}
+          {canAdminister && (
+            <Button component={RouterLink} to="/admin/users" variant="text">
+              Utilisateurs
             </Button>
           )}
           <Button
@@ -293,6 +305,15 @@ export function Header({
             Gérer les produits
           </MenuItem>
         )}
+        {canViewOrders && (
+          <MenuItem
+            component={RouterLink}
+            onClick={() => setMobileMenuAnchor(null)}
+            to="/admin/orders"
+          >
+            Gérer les commandes
+          </MenuItem>
+        )}
         {canAdminister && (
           <MenuItem
             component={RouterLink}
@@ -300,6 +321,15 @@ export function Header({
             to="/admin/restaurants"
           >
             Gérer les restaurants
+          </MenuItem>
+        )}
+        {canAdminister && (
+          <MenuItem
+            component={RouterLink}
+            onClick={() => setMobileMenuAnchor(null)}
+            to="/admin/users"
+          >
+            Gérer les utilisateurs
           </MenuItem>
         )}
         {user ? (

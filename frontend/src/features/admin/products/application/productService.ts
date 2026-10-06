@@ -6,6 +6,7 @@ import {
   getProducts,
   getRestaurants,
   updateProduct,
+  updateProductAvailability,
 } from '../infrastructure/productApi'
 
 export async function loadProductCatalog(): Promise<{
@@ -26,6 +27,13 @@ export function saveProduct(
   return productId === null
     ? createProduct(input)
     : updateProduct(productId, input)
+}
+
+export function setProductAvailability(
+  productId: number,
+  isAvailable: boolean,
+): Promise<Product> {
+  return updateProductAvailability(productId, isAvailable)
 }
 
 export function removeProduct(productId: number): Promise<void> {

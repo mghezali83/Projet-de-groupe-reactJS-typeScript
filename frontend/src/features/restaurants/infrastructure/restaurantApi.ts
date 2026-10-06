@@ -19,6 +19,7 @@ export async function getRestaurant(restaurantId: number): Promise<Restaurant> {
 }
 
 export type RestaurantInput = Omit<Restaurant, 'id'>
+export type RestaurantUpdateInput = Omit<RestaurantInput, 'is_open'>
 
 export async function createRestaurant(
   restaurant: RestaurantInput,
@@ -29,7 +30,7 @@ export async function createRestaurant(
 
 export async function updateRestaurant(
   restaurantId: number,
-  restaurant: Partial<RestaurantInput>,
+  restaurant: Partial<RestaurantUpdateInput>,
 ): Promise<Restaurant> {
   const response = await apiClient.patch<Restaurant>(
     `/restaurants/${restaurantId}`,

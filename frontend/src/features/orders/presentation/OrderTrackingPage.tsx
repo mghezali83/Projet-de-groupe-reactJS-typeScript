@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -18,9 +18,9 @@ import { useParams } from 'react-router-dom'
 import { getApiErrorMessage } from '../../../shared/api/client'
 import type { Order, OrderStatus } from '../domain/order'
 import { getOrder } from '../infrastructure/orderApi'
+import { createOrderStatusSocket } from '../infrastructure/orderStatusSocket'
 import { getCatalogProducts } from '../../products/infrastructure/productCatalogApi'
 import type { Product } from '../../admin/products/domain/product'
-import { orderSocket } from '../infrastructure/orderSocket'
 
 const orderedStatuses: OrderStatus[] = [
   'pending',
@@ -29,6 +29,35 @@ const orderedStatuses: OrderStatus[] = [
   'ready',
   'collected',
 ]
+
+function isOrderStatus(value: unknown): value is OrderStatus {
+  return (
+    value === 'pending' ||
+    value === 'validated' ||
+    value === 'preparing' ||
+    value === 'ready' ||
+    value === 'collected' ||
+    value === 'cancelled'
+  )
+}
+
+function isOrderStatusUpdate(
+  payload: unknown,
+  expectedOrderNumber: string,
+): payload is { order_number: string; status: OrderStatus } {
+  if (
+    typeof payload !== 'object' ||
+    payload === null ||
+    !('order_number' in payload) ||
+    !('status' in payload)
+  ) {
+    return false
+  }
+
+  return (
+    payload.order_number === expectedOrderNumber && isOrderStatus(payload.status)
+  )
+}
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: 'En attente',
@@ -48,63 +77,125 @@ export function OrderTrackingPage() {
   const theme = useTheme()
   const compactStepper = useMediaQuery(theme.breakpoints.down('sm'))
   const { order_number: orderNumber } = useParams()
-  const [order, setOrder] = useState<Order | null>(null)
+  const [orderState, setOrderState] = useState<{
+    orderNumber: string
+    order: Order
+  } | null>(null)
   const [productNames, setProductNames] = useState<Record<number, string>>({})
   const [productLookupError, setProductLookupError] = useState<string | null>(
     null,
   )
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<{
+    orderNumber: string
+    message: string
+  } | null>(null)
+  const realtimeRevision = useRef(0)
+  const latestRealtimeStatus = useRef<OrderStatus | null>(null)
+  const order =
+    orderNumber !== undefined && orderState?.orderNumber === orderNumber
+      ? orderState.order
+      : null
+  const error = orderNumber
+    ? loadError?.orderNumber === orderNumber
+      ? loadError.message
+      : null
+    : 'Le numéro de commande est manquant.'
+  const loading = order === null && error === null
   const trackingRestaurantId = order?.restaurant_id
 
   useEffect(() => {
     let active = true
+    let socket: ReturnType<typeof createOrderStatusSocket> | null = null
+    realtimeRevision.current = 0
+    latestRealtimeStatus.current = null
+
     const refresh = async () => {
-      if (!orderNumber) {
-        if (active) {
-          setError('Le numéro de commande est manquant.')
-          setLoading(false)
-        }
-        return
-      }
+      if (!orderNumber) return
+      const revisionAtRequestStart = realtimeRevision.current
       try {
         const result = await getOrder(orderNumber)
         if (active) {
-          setOrder(result)
-          setError(null)
+          if (revisionAtRequestStart === realtimeRevision.current) {
+            setOrderState({ orderNumber, order: result })
+          } else {
+            setOrderState((currentState) => {
+              const currentOrder =
+                currentState?.orderNumber === orderNumber
+                  ? currentState.order
+                  : null
+              return {
+                orderNumber,
+                order: {
+                  ...result,
+                  status:
+                    currentOrder?.order_number === orderNumber
+                      ? currentOrder.status
+                      : (latestRealtimeStatus.current ?? result.status),
+                },
+              }
+            })
+          }
+          setLoadError(null)
         }
       } catch (requestError) {
-        if (active) setError(getApiErrorMessage(requestError))
-      } finally {
-        if (active) setLoading(false)
+        if (active) {
+          setLoadError({
+            orderNumber,
+            message: getApiErrorMessage(requestError),
+          })
+        }
       }
     }
 
     void refresh()
     const interval = window.setInterval(() => void refresh(), 10_000)
-    const updateOrder = (
-      update: Pick<Order, 'order_number' | 'status'>,
-    ) => {
-      if (update.order_number === orderNumber) {
-        setOrder((current) =>
-          current ? { ...current, status: update.status } : current,
-        )
-        setError(null)
+
+    const joinTrackedOrder = () => {
+      if (orderNumber) {
+        socket?.emit('join_order_tracking', { order_number: orderNumber })
       }
     }
-    const joinOrder = () => {
-      orderSocket.emit('join_order', { order_number: orderNumber })
+    const applyRealtimeStatus = (payload: unknown) => {
+      if (!orderNumber || !isOrderStatusUpdate(payload, orderNumber)) return
+      if (latestRealtimeStatus.current === payload.status) return
+
+      latestRealtimeStatus.current = payload.status
+      realtimeRevision.current += 1
+      setOrderState((currentState) => {
+        const currentOrder =
+          currentState?.orderNumber === orderNumber
+            ? currentState.order
+            : null
+        if (
+          currentOrder === null ||
+          currentOrder.order_number !== payload.order_number ||
+          currentOrder.status === payload.status
+        ) {
+          return currentState
+        }
+        return {
+          orderNumber,
+          order: { ...currentOrder, status: payload.status },
+        }
+      })
+      setLoadError(null)
     }
-    orderSocket.on('order_status_updated', updateOrder)
-    orderSocket.on('connect', joinOrder)
-    orderSocket.connect()
+
+    if (orderNumber) {
+      socket = createOrderStatusSocket()
+      socket.on('connect', joinTrackedOrder)
+      socket.on('order_status_updated', applyRealtimeStatus)
+      socket.connect()
+    }
+
     return () => {
       active = false
       window.clearInterval(interval)
-      orderSocket.off('order_status_updated', updateOrder)
-      orderSocket.off('connect', joinOrder)
-      orderSocket.emit('leave_order', { order_number: orderNumber })
-      orderSocket.disconnect()
+      if (socket) {
+        socket.off('connect', joinTrackedOrder)
+        socket.off('order_status_updated', applyRealtimeStatus)
+        socket.disconnect()
+      }
     }
   }, [orderNumber])
 

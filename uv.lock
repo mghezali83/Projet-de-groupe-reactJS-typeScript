@@ -568,7 +568,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "pyjwt", specifier = ">=2.13.0" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
-    { name = "python-socketio", specifier = ">=5.13.0" },
+    { name = "python-socketio", specifier = ">=5.13.0,<6" },
     { name = "sqlalchemy", specifier = ">=2.0.54" },
     { name = "uvicorn", specifier = ">=0.52.4" },
 ]

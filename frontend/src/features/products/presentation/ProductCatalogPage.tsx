@@ -20,6 +20,7 @@ import {
 import AddShoppingCartRounded from '@mui/icons-material/AddShoppingCartRounded'
 import SearchRounded from '@mui/icons-material/SearchRounded'
 import { useSearchParams } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../../app/hooks'
 import { addCartItem } from '../../cart/application/cartSlice'
 import type { Product } from '../../admin/products/domain/product'
@@ -439,7 +440,16 @@ function ProductCard({
             gap: 1,
           }}
         >
-          <Typography component="h2" variant="h5">
+          <Typography
+            component={RouterLink}
+            sx={{
+              color: 'text.primary',
+              textDecoration: 'none',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+            to={`/produit/${product.id}`}
+            variant="h5"
+          >
             {product.name}
           </Typography>
           <Chip

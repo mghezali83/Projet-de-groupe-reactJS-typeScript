@@ -37,6 +37,11 @@ const ProductCatalogPage = lazy(() =>
     (module) => ({ default: module.ProductCatalogPage }),
   ),
 )
+const ProductDetailPage = lazy(() =>
+  import('./features/products/presentation/ProductDetailPage').then((module) => ({
+    default: module.ProductDetailPage,
+  })),
+)
 const CheckoutPage = lazy(() =>
   import('./features/orders/presentation/CheckoutPage').then((module) => ({
     default: module.CheckoutPage,
@@ -72,6 +77,16 @@ const RestaurantAdminPage = lazy(() =>
   import('./features/admin/restaurants/presentation/RestaurantAdminPage').then(
     (module) => ({ default: module.RestaurantAdminPage }),
   ),
+)
+const OrderManagementPage = lazy(() =>
+  import('./features/admin/orders/presentation/OrderManagementPage').then(
+    (module) => ({ default: module.OrderManagementPage }),
+  ),
+)
+const UserAdminPage = lazy(() =>
+  import('./features/admin/users/presentation/UserAdminPage').then((module) => ({
+    default: module.UserAdminPage,
+  })),
 )
 
 function HomePage({
@@ -357,6 +372,7 @@ function App() {
               element={<ProductCatalogPage />}
               path="/produits"
             />
+            <Route element={<ProductDetailPage />} path="/produit/:id" />
             <Route element={<CheckoutPage />} path="/checkout" />
             <Route
               element={
@@ -385,6 +401,22 @@ function App() {
                 </RoleGuard>
               }
               path="/admin/restaurants"
+            />
+            <Route
+              element={
+                <RoleGuard allowedRoles={['admin', 'staff', 'direction']}>
+                  <OrderManagementPage />
+                </RoleGuard>
+              }
+              path="/admin/orders"
+            />
+            <Route
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <UserAdminPage />
+                </RoleGuard>
+              }
+              path="/admin/users"
             />
             <Route element={<NotFoundPage />} path="*" />
           </Routes>

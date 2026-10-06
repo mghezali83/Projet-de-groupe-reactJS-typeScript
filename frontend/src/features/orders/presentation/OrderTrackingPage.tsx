@@ -20,6 +20,7 @@ import type { Order, OrderStatus } from '../domain/order'
 import { getOrder } from '../infrastructure/orderApi'
 import { getCatalogProducts } from '../../products/infrastructure/productCatalogApi'
 import type { Product } from '../../admin/products/domain/product'
+import { orderSocket } from '../infrastructure/orderSocket'
 
 const orderedStatuses: OrderStatus[] = [
   'pending',
@@ -81,9 +82,29 @@ export function OrderTrackingPage() {
 
     void refresh()
     const interval = window.setInterval(() => void refresh(), 10_000)
+    const updateOrder = (
+      update: Pick<Order, 'order_number' | 'status'>,
+    ) => {
+      if (update.order_number === orderNumber) {
+        setOrder((current) =>
+          current ? { ...current, status: update.status } : current,
+        )
+        setError(null)
+      }
+    }
+    const joinOrder = () => {
+      orderSocket.emit('join_order', { order_number: orderNumber })
+    }
+    orderSocket.on('order_status_updated', updateOrder)
+    orderSocket.on('connect', joinOrder)
+    orderSocket.connect()
     return () => {
       active = false
       window.clearInterval(interval)
+      orderSocket.off('order_status_updated', updateOrder)
+      orderSocket.off('connect', joinOrder)
+      orderSocket.emit('leave_order', { order_number: orderNumber })
+      orderSocket.disconnect()
     }
   }, [orderNumber])
 

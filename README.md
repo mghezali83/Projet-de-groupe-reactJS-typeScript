@@ -11,6 +11,7 @@ Devoir de deuxième année d'informatique : création d'une API REST avec FastAP
 - Consultation des restaurants et modification de leurs informations par un administrateur.
 - Recherche des produits avec filtres, création, modification, suppression et disponibilité.
 - Commandes publiques, calcul du total côté serveur, suivi, statuts et annulation.
+- Tableau cuisine staff avec gestion des commandes, disponibilité produit et mises à jour de suivi en temps réel par Socket.IO.
 - Contrôle des accès par restaurant et documentation Swagger avec authentification Bearer.
 
 ## Technologies

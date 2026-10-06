@@ -79,9 +79,6 @@ export function LoginPage() {
               <Typography color="text.secondary" sx={{ mt: 1 }}>
                 Connectez-vous pour accéder aux outils de gestion.
               </Typography>
-              <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
-                Administrateur de démonstration : admin123 / admin@123456
-              </Typography>
             </Box>
             {error && <Alert severity="error">{error}</Alert>}
             <TextField

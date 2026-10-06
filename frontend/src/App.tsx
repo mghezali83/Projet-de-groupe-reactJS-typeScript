@@ -47,6 +47,11 @@ const OrderTrackingPage = lazy(() =>
     default: module.OrderTrackingPage,
   })),
 )
+const KitchenDashboardPage = lazy(() =>
+  import('./features/orders/presentation/KitchenDashboardPage').then((module) => ({
+    default: module.KitchenDashboardPage,
+  })),
+)
 
 const LoginPage = lazy(() =>
   import('./features/auth/presentation/LoginPage').then((module) => ({
@@ -353,6 +358,14 @@ function App() {
               path="/produits"
             />
             <Route element={<CheckoutPage />} path="/checkout" />
+            <Route
+              element={
+                <RoleGuard allowedRoles={['staff']}>
+                  <KitchenDashboardPage />
+                </RoleGuard>
+              }
+              path="/cuisine"
+            />
             <Route
               element={<OrderTrackingPage />}
               path="/suivi/:order_number"

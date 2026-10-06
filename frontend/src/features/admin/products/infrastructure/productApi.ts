@@ -28,6 +28,17 @@ export async function updateProduct(
   return response.data
 }
 
+export async function updateProductAvailability(
+  productId: number,
+  isAvailable: boolean,
+): Promise<Product> {
+  const response = await apiClient.patch<Product>(
+    `/products/${productId}/availability`,
+    { is_available: isAvailable },
+  )
+  return response.data
+}
+
 export async function deleteProduct(productId: number): Promise<void> {
   await apiClient.delete(`/products/${productId}`)
 }

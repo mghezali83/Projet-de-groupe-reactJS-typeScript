@@ -205,6 +205,11 @@ export function Header({
               Produits
             </Button>
           )}
+          {user?.role === 'staff' && (
+            <Button component={RouterLink} to="/cuisine" variant="text">
+              Cuisine
+            </Button>
+          )}
           {canAdminister && (
             <Button component={RouterLink} to="/admin/restaurants" variant="text">
               Restaurants
@@ -291,6 +296,15 @@ export function Header({
             to="/admin/products"
           >
             Gérer les produits
+          </MenuItem>
+        )}
+        {user?.role === 'staff' && (
+          <MenuItem
+            component={RouterLink}
+            onClick={() => setMobileMenuAnchor(null)}
+            to="/cuisine"
+          >
+            Cuisine
           </MenuItem>
         )}
         {canAdminister && (

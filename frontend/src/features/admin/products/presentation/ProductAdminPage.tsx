@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -42,6 +41,7 @@ import {
   loadProductCatalog,
   removeProduct,
   saveProduct,
+  setProductAvailability,
 } from '../application/productService'
 
 interface ProductFormValues {
@@ -113,6 +113,8 @@ export function ProductAdminPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<number | null>(null)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductFormValues>(emptyForm)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -131,7 +133,13 @@ export function ProductAdminPage() {
   const refreshData = useCallback(async () => {
     try {
       const catalog = await loadProductCatalog()
-      setProducts(catalog.products)
+      setProducts(
+        user?.role === 'staff'
+          ? catalog.products.filter(
+              (product) => product.restaurant_id === user.restaurant_id,
+            )
+          : catalog.products,
+      )
       setRestaurants(catalog.restaurants)
       setLoadError(null)
     } catch (error) {
@@ -139,14 +147,20 @@ export function ProductAdminPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     let active = true
     void loadProductCatalog()
       .then((catalog) => {
         if (!active) return
-        setProducts(catalog.products)
+        setProducts(
+          user?.role === 'staff'
+            ? catalog.products.filter(
+                (product) => product.restaurant_id === user.restaurant_id,
+              )
+            : catalog.products,
+        )
         setRestaurants(catalog.restaurants)
       })
       .catch((error: unknown) => {
@@ -159,7 +173,7 @@ export function ProductAdminPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [user])
 
   function openCreateDialog() {
     setSelectedProduct(null)
@@ -243,6 +257,44 @@ export function ProductAdminPage() {
     }
   }
 
+  async function handleAvailabilityChange(
+    product: Product,
+    isAvailable: boolean,
+  ) {
+    const canUpdateAvailability =
+      user?.role === 'admin' ||
+      (user?.role === 'staff' &&
+        user.restaurant_id === product.restaurant_id)
+    if (!canUpdateAvailability || saving || availabilityUpdatingId !== null) {
+      return
+    }
+
+    setAvailabilityUpdatingId(product.id)
+    setAvailabilityError(null)
+    try {
+      const updatedProduct = await setProductAvailability(
+        product.id,
+        isAvailable,
+      )
+      setProducts((currentProducts) =>
+        currentProducts.map((currentProduct) =>
+          currentProduct.id === updatedProduct.id
+            ? { ...currentProduct, is_available: updatedProduct.is_available }
+            : currentProduct,
+        ),
+      )
+      setSnackbar(
+        updatedProduct.is_available
+          ? 'Produit disponible à la commande.'
+          : 'Produit indisponible à la commande.',
+      )
+    } catch (error) {
+      setAvailabilityError(getApiErrorMessage(error))
+    } finally {
+      setAvailabilityUpdatingId(null)
+    }
+  }
+
   return (
     <Box sx={{ py: { xs: 4, md: 7 } }}>
       <Stack
@@ -281,6 +333,11 @@ export function ProductAdminPage() {
       {loadError && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {loadError}
+        </Alert>
+      )}
+      {availabilityError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {availabilityError}
         </Alert>
       )}
 
@@ -350,13 +407,41 @@ export function ProductAdminPage() {
                         })}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          color={product.is_available ? 'success' : 'default'}
-                          label={
-                            product.is_available ? 'Disponible' : 'Indisponible'
-                          }
-                          size="small"
-                        />
+                        <Stack
+                          sx={{
+                            alignItems: 'center',
+                            flexDirection: 'row',
+                            gap: 0.5,
+                          }}
+                        >
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={product.is_available}
+                                disabled={
+                                  saving || availabilityUpdatingId !== null ||
+                                  !(
+                                    user?.role === 'admin' ||
+                                    (user?.role === 'staff' &&
+                                      user.restaurant_id === product.restaurant_id)
+                                  )
+                                }
+                                onChange={(_, checked) =>
+                                  void handleAvailabilityChange(product, checked)
+                                }
+                              />
+                            }
+                            label={
+                              product.is_available ? 'Disponible' : 'Indisponible'
+                            }
+                          />
+                          {availabilityUpdatingId === product.id && (
+                            <CircularProgress
+                              aria-label={`Mise à jour de la disponibilité de ${product.name}`}
+                              size={18}
+                            />
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell align="right">
                         <IconButton

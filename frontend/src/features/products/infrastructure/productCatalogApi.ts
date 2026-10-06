@@ -16,3 +16,8 @@ export async function getCatalogProducts(
   })
   return response.data
 }
+
+export async function getCatalogProduct(productId: number): Promise<Product> {
+  const response = await apiClient.get<Product>(`/products/${productId}`)
+  return response.data
+}

@@ -107,7 +107,11 @@ export function RestaurantAdminPage() {
     setError(null)
     try {
       if (editing) {
-        await updateRestaurant(editing.id, form)
+        const { is_open: isOpen, ...restaurantDetails } = form
+        await updateRestaurant(editing.id, restaurantDetails)
+        if (isOpen !== editing.is_open) {
+          await updateRestaurantAvailability(editing.id, isOpen)
+        }
       } else {
         await createRestaurant(form)
       }

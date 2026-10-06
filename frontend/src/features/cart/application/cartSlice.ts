@@ -11,7 +11,7 @@ export interface CartItem {
   isAvailable: boolean
 }
 
-interface CartState {
+export interface CartState {
   restaurantId: number | null
   items: CartItem[]
 }
